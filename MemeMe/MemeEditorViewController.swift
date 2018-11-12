@@ -8,7 +8,7 @@
 
 import UIKit
 
-class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+class MemeEditorViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
 
     @IBOutlet weak var imagePickerView: UIImageView!
     @IBOutlet weak var cameraButton: UIBarButtonItem!
@@ -17,6 +17,8 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     @IBOutlet weak var bottomToolbar: UIToolbar!
     @IBOutlet weak var topToolbar: UIToolbar!
     @IBOutlet weak var shareButton: UIBarButtonItem!
+    
+    var generatedMemes: [Meme] = []
     
     let memeTextFieldDelegate = MemeTextFieldDelegate()
     let memeTextAttributes:[NSAttributedString.Key:Any] = [
@@ -88,7 +90,9 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     
     @objc func keyboardWillShow(_ notification:Notification) {
         
-        view.frame.origin.y -= getKeyboardHeight(notification)
+        if bottomText.isFirstResponder {
+            view.frame.origin.y -= getKeyboardHeight(notification)
+        }
     }
     
     func getKeyboardHeight(_ notification:Notification) -> CGFloat {
@@ -99,16 +103,17 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     }
 
     @IBAction func pickAnImage(_ sender: Any) {
-        let pickerController = UIImagePickerController()
-        pickerController.delegate = self
-        pickerController.sourceType = .photoLibrary
-        present(pickerController, animated: true, completion: nil)
+        presentImagePickerWith(sourceType: .photoLibrary)
     }
     
     @IBAction func pickFromCamera(_ sender: Any) {
+        presentImagePickerWith(sourceType: .camera)
+    }
+    
+    func presentImagePickerWith(sourceType: UIImagePickerController.SourceType) {
         let pickerController = UIImagePickerController()
         pickerController.delegate = self
-        pickerController.sourceType = .camera
+        pickerController.sourceType = sourceType
         present(pickerController, animated: true, completion: nil)
     }
     
@@ -129,8 +134,7 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
     
     func generateMemedImage() -> UIImage {
         
-        bottomToolbar.isHidden = true
-        topToolbar.isHidden = true
+        hideTopAndBottomBars(true)
         
         // Render view to an image
         UIGraphicsBeginImageContext(self.view.frame.size)
@@ -138,21 +142,36 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         let memedImage:UIImage = UIGraphicsGetImageFromCurrentImageContext()!
         UIGraphicsEndImageContext()
         
-        bottomToolbar.isHidden = false
-        topToolbar.isHidden = false
+        hideTopAndBottomBars(false)
         
         return memedImage
     }
     
+    func hideTopAndBottomBars(_ hide: Bool) {
+        bottomToolbar.isHidden = hide
+        topToolbar.isHidden = hide
+    }
+    
+    func save() {
+        let meme = Meme(topText: topText.text!, bottomText: bottomText.text!, originalImage: imagePickerView.image!, memedImage: generateMemedImage())
+        
+        generatedMemes.append(meme)
+    }
+    
+    
     @IBAction func share(_ sender: Any) {
         let memedImage = generateMemedImage()
         let activityController = UIActivityViewController(activityItems: [memedImage], applicationActivities: nil)
-//        activityController.completionWithItemsHandler = { activity, success, items, error in
-//            self.save()
-//        }
+        activityController.completionWithItemsHandler = { (activityType: UIActivity.ActivityType?, completed: Bool, returnedItems: [Any]?, error: Error?) -> Void in
+            
+            if completed {
+                self.save()
+            }
+        }
         
         present(activityController, animated: true, completion: nil)
     }
+    
     @IBAction func cancelEdit(_ sender: Any) {
         self.topText.text = "TOP"
         self.bottomText.text = "BOTTOM"
