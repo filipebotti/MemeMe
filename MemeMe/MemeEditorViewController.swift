@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import AVFoundation
 
 class MemeEditorViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
 
@@ -18,7 +19,6 @@ class MemeEditorViewController: UIViewController, UIImagePickerControllerDelegat
     @IBOutlet weak var topToolbar: UIToolbar!
     @IBOutlet weak var shareButton: UIBarButtonItem!
     
-    var generatedMemes: [Meme] = []
     
     let memeTextFieldDelegate = MemeTextFieldDelegate()
     let memeTextAttributes:[NSAttributedString.Key:Any] = [
@@ -27,6 +27,8 @@ class MemeEditorViewController: UIViewController, UIImagePickerControllerDelegat
         NSAttributedString.Key.font: UIFont(name: "HelveticaNeue-CondensedBlack", size: 40)!,
         NSAttributedString.Key.strokeWidth: -2
     ]
+    
+    var memedImage: UIImage!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -39,6 +41,24 @@ class MemeEditorViewController: UIViewController, UIImagePickerControllerDelegat
         self.bottomText.text = "BOTTOM"
         
         self.shareButton.isEnabled = false
+    }
+    
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        
+        if let image = imagePickerView.image {
+            
+            let aspectRect = AVMakeRect(aspectRatio: image.size, insideRect: imagePickerView.bounds)
+            
+            
+            var frame = topText.frame
+            frame.origin.y = aspectRect.minY + frame.size.height
+            topText.frame = frame
+            
+            var btFrame = bottomText.frame
+            btFrame.origin.y = aspectRect.maxY
+            bottomText.frame = btFrame
+        }
     }
     
     override var prefersStatusBarHidden: Bool {
@@ -137,8 +157,8 @@ class MemeEditorViewController: UIViewController, UIImagePickerControllerDelegat
         hideTopAndBottomBars(true)
         
         // Render view to an image
-        UIGraphicsBeginImageContext(self.view.frame.size)
-        view.drawHierarchy(in: self.view.frame, afterScreenUpdates: true)
+        UIGraphicsBeginImageContext(view.frame.size)
+        view.drawHierarchy(in: view.frame, afterScreenUpdates: true)
         let memedImage:UIImage = UIGraphicsGetImageFromCurrentImageContext()!
         UIGraphicsEndImageContext()
         
@@ -153,14 +173,17 @@ class MemeEditorViewController: UIViewController, UIImagePickerControllerDelegat
     }
     
     func save() {
-        let meme = Meme(topText: topText.text!, bottomText: bottomText.text!, originalImage: imagePickerView.image!, memedImage: generateMemedImage())
+        let meme = Meme(topText: topText.text!, bottomText: bottomText.text!, originalImage: imagePickerView.image!, memedImage: memedImage)
         
-        generatedMemes.append(meme)
+        let appDelegate = UIApplication.shared.delegate as! AppDelegate
+        appDelegate.memes.append(meme)
+        
+        self.dismiss(animated: true, completion: nil)
     }
     
     
     @IBAction func share(_ sender: Any) {
-        let memedImage = generateMemedImage()
+        memedImage = generateMemedImage()
         let activityController = UIActivityViewController(activityItems: [memedImage], applicationActivities: nil)
         activityController.completionWithItemsHandler = { (activityType: UIActivity.ActivityType?, completed: Bool, returnedItems: [Any]?, error: Error?) -> Void in
             
@@ -177,6 +200,8 @@ class MemeEditorViewController: UIViewController, UIImagePickerControllerDelegat
         self.bottomText.text = "BOTTOM"
         self.imagePickerView.image = nil
         self.shareButton.isEnabled = false
+        
+        self.dismiss(animated: true, completion: nil)
     }
 }
 
